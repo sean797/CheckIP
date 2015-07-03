@@ -6,9 +6,11 @@ import requests
 from systemd import journal
 
 #### Configuration Options 
-URL = "www.usermod.net/api/ip"					# Server to query public ip from
+URL = "www.usermod.net/api/ip"					# Server to query public IP from
 EXT_IP_FILE = os.getenv("HOME") + "/.config/current_ip"		# File to store IP
-EMAIL_TO = "xxxxx@gmail.com" 				# Email to notify when IP changes
+RECIPIENT = "xxxxx@gmail.com" 					# Email to notify when IP changes
+mailgun_sandbox = "sandboxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"	# Your Mailgun sandbox code
+mailgun_api = "key-xxxxxxxxxxxxxxxxxxxxxxxxxxxx"		# Your Mailgun API key
 ####
 
 HOST, REQUEST = URL.split("/",1)
@@ -47,13 +49,18 @@ def knownIP(file=EXT_IP_FILE):
         return known_ip
 
 def MailgunEmail(subject,text):
-    return requests.post(
-        "https://api.mailgun.net/v3/sandbox.mailgun.org/messages",
-        auth=("api", "key-"),
+    email = requests.post(
+        "https://api.mailgun.net/v3/{}.mailgun.org/messages".format(mailgun_sandbox),
+        auth=("api", mailgun_api),
         data={"from": "Mailgun Sandbox <postmaster@sandbox.mailgun.org>",
-              "to": ["Sean <{}>".format(EMAIL_TO)],
+              "to": [RECIPIENT],
               "subject": subject,
               "text": text})
+    if email.status_code != 200:
+        log("Issue sending email to {}".format(RECIPIENT)) 
+        exit(3)
+    else:
+        pass
 
 def log(message,level=6,app="checkIP.py"):
     log = journal.stream(app,level)
@@ -69,6 +76,6 @@ if KNOWN_IP != CURRENT_IP:
     ext_ip_file.write("\n")
     ext_ip_file.close()
     MailgunEmail(subject="Home IP address has changed",text="IP address changed to {}".format(CURRENT_IP))
-    log("Public IP changed to {IP}, email sent to {EMAIL}".format(IP=CURRENT_IP,EMAIL=EMAIL_TO))
+    log("Public IP changed to {IP}, email sent to {EMAIL}".format(IP=CURRENT_IP,EMAIL=RECIPIENT))
 else:
     log("Public IP hasn't changed")
