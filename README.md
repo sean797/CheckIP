@@ -12,4 +12,4 @@ Install dependencies:
     pip install requests
 
 
-User defined options are at the top of checkIP.py. You only need to define SMTP options or Mailgun.
+User defined options are at the top of checkIP.py. You only need to define SMTP or Mailgun options.
