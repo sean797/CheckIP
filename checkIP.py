@@ -10,13 +10,13 @@ import smtplib
 #### Configuration Options 
 URL = "www.usermod.net/api/ip"					# Server to query public ip from
 EXT_IP_FILE = os.getenv("HOME") + "/.current_ip"		# File to store IP
-recipient  = "" 			# Email to notify when changes
+recipient  = "" 						# Email to notify when changes
 sender = ""
-mailgun_sandbox = ""     # Your Mailgun sandbox code
-mailgun_api = ""            # Your Mailgun API key
-smtp_user = ""					# SMTP User
-smtp_pass = ""						# SMTP Password
-smtp_host = ""				# SMTP host
+mailgun_sandbox = ""						# Your Mailgun sandbox code
+mailgun_api = ""            					# Your Mailgun API key
+smtp_user = ""							# SMTP User
+smtp_pass = ""							# SMTP Password
+smtp_host = ""							# SMTP host
 ####
 
 parser = argparse.ArgumentParser(description='CheckIP will email your public IP address, run from cron to email when it change')
