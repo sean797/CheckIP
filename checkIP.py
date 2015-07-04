@@ -4,14 +4,29 @@ import http.client
 import os
 import requests
 from systemd import journal
+import argparse
+import smtplib
 
 #### Configuration Options 
-URL = "www.usermod.net/api/ip"					# Server to query public IP from
-EXT_IP_FILE = os.getenv("HOME") + "/.config/current_ip"		# File to store IP
-RECIPIENT = "xxxxx@gmail.com" 					# Email to notify when IP changes
-mailgun_sandbox = "sandboxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"	# Your Mailgun sandbox code
-mailgun_api = "key-xxxxxxxxxxxxxxxxxxxxxxxxxxxx"		# Your Mailgun API key
+URL = "www.usermod.net/api/ip"					# Server to query public ip from
+EXT_IP_FILE = os.getenv("HOME") + "/.current_ip"		# File to store IP
+recipient  = "" 			# Email to notify when changes
+sender = ""
+mailgun_sandbox = ""     # Your Mailgun sandbox code
+mailgun_api = ""            # Your Mailgun API key
+smtp_user = ""					# SMTP User
+smtp_pass = ""						# SMTP Password
+smtp_host = ""				# SMTP host
 ####
+
+parser = argparse.ArgumentParser(description='CheckIP will email your public IP address, run from cron to email when it change')
+mail_method = parser.add_mutually_exclusive_group(required=True)
+mail_method.add_argument('-s','--smtp', help='Use SMTP server',action='store_true')
+mail_method.add_argument('-m','--mailgun', help='Use mailgun',action='store_true')
+args = parser.parse_args()
+
+mailgun = args.mailgun
+smtp = args.smtp
 
 HOST, REQUEST = URL.split("/",1)
 REQUEST = "/" + REQUEST
@@ -48,19 +63,31 @@ def knownIP(file=EXT_IP_FILE):
         known_ip = data.strip('\n')
         return known_ip
 
-def MailgunEmail(subject,text):
-    email = requests.post(
-        "https://api.mailgun.net/v3/{}.mailgun.org/messages".format(mailgun_sandbox),
-        auth=("api", mailgun_api),
-        data={"from": "Mailgun Sandbox <postmaster@sandbox.mailgun.org>",
-              "to": [RECIPIENT],
-              "subject": subject,
-              "text": text})
-    if email.status_code != 200:
-        log("Issue sending email to {}".format(RECIPIENT)) 
-        exit(3)
-    else:
-        pass
+def email(subject,msg):
+    if mailgun:
+        email = requests.post(
+            "https://api.mailgun.net/v3/{}.mailgun.org/messages".format(mailgun_sandbox),
+            auth=("api", mailgun_api),
+            data={"from": "Mailgun Sandbox <postmaster@sandbox.mailgun.org>",
+                 "to": [recipient],
+                  "subject": subject,
+                  "text": msg})
+        if email.status_code != 200:
+            log("Got {} using mailguns API".format(email.status_code))
+            return False
+        else:
+            return True
+    elif smtp:
+        try:
+            email = smtplib.SMTP(smtp_host)
+            email.starttls()
+            email.login(smtp_user,smtp_pass)
+            email.sendmail(from_addr=sender,to_addrs=recipient,msg="Subject:{subject} \n\n {msg} \n\n".format(subject=subject,msg=msg))
+        except Exception as error:
+            log(str(error))
+            return False
+        email.quit()
+        return True 
 
 def log(message,level=6,app="checkIP.py"):
     log = journal.stream(app,level)
@@ -75,7 +102,10 @@ if KNOWN_IP != CURRENT_IP:
     ext_ip_file.write(CURRENT_IP)
     ext_ip_file.write("\n")
     ext_ip_file.close()
-    MailgunEmail(subject="Home IP address has changed",text="IP address changed to {}".format(CURRENT_IP))
-    log("Public IP changed to {IP}, email sent to {EMAIL}".format(IP=CURRENT_IP,EMAIL=RECIPIENT))
+    sent = email(subject="Home IP address has changed",msg="IP address changed to {}".format(CURRENT_IP))
+    if sent:
+        log("Public IP changed to {IP}, written to file & email sent to {EMAIL}".format(IP=CURRENT_IP,EMAIL=recipient))
+    else:
+        log("Public IP changed to {IP}, written to file but error occored sending email to {EMAIL}".format(IP=CURRENT_IP,EMAIL=recipient))
 else:
     log("Public IP hasn't changed")
