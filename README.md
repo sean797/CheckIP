@@ -1,6 +1,6 @@
 CheckIP
 =========
-Python3 script to email public IP address every time it changes
+Python3 script to email public IP address if it's changed
 
 
 Installation
